@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # Database created by the program
-.db
+*.db
