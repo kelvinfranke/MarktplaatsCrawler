@@ -26,11 +26,11 @@ class Crawler(object):
             self.__set_proxy(proxy)
             # Check proxy validity.
             if self.__is_proxy_ok(url=self.proxy_check_url):
-                print("\n\033[92m✔\033[0m Proxy OK: %s" % str(proxy))
+                print("\n\033[92m✓\033[0m Proxy OK: %s" % str(proxy))
             else:
-                print("\033[93m✘\033[0m Custom proxy is not functional")
+                print("\033[93m✗\033[0m Custom proxy is not functional")
                 if force_custom_proxy:
-                    self.stop("\033[91m✘\033[0m Custom proxy was forced, but does not work.")
+                    self.stop("\033[91m✗\033[0m Custom proxy was forced, but does not work.")
                 # Allow finding another proxy anyway.
                 proxy = None
 
@@ -47,25 +47,25 @@ class Crawler(object):
             proxy = FreeProxy(timeout=0.5, rand=True).get()
             # Check whether free-proxy works.
             if proxy is None:
-                print("\033[93m✘\033[0m Could not find a proxy with `free-proxy`.")
+                print("\033[93m✗\033[0m `free-proxy` could not find a proxy")
                 invalid_count += 1
                 continue
             
-            # A proxy is found, so use it.
+            # A proxy was found, so use it.
+            print("A proxy was found: '%s'" % str(proxy))
             self.__set_proxy(proxy)
 
             # Check whether this proxy works for the given URL.
-            print("\033[92m✔\033[0m A proxy was found; checking on '%s'..." % self.proxy_check_url)
             if not self.__is_proxy_ok(url=self.proxy_check_url):
-                print("\033[93m✘\033[0m Proxy does not work :(")
+                print("\033[93m✗\033[0m Proxy does not work")
                 proxy = None
                 invalid_count += 1
             else:
-                print("\n\033[92m✔\033[0m Proxy OK: %s" % str(proxy))
+                print("\n\033[92m✓\033[0m Proxy OK: %s" % str(proxy))
                 return
         
         # No functional proxy was found within `max_retries` :(
-        self.stop("\033[91m✘\033[0m None of the attempted %d proxies is functional.\n\nIs `free-proxy` working?" % max_retries)
+        self.stop("\033[91m✗\033[0m None of the attempted %d proxies is functional.\n\nIs `free-proxy` working?" % max_retries)
     
 
     # Sets proxies accordingly.
@@ -117,6 +117,7 @@ class Crawler(object):
             # Check validity.
             if None in responses:
                 invalid_count += 1
+                time.sleep(.5)
             else:
                 break
 

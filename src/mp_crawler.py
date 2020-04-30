@@ -16,107 +16,74 @@ class MarktplaatsCrawler(Crawler):
 
 
     # Does the API calls to Marktplaats and returns the product data
-    def crawl_listings(self, query, use_description, postcode, cat1_id, cat2_id, items_per_call=100, offset=0, repeat_delay=0.1, asynchronous=True, verbose=False):
+    def crawl_listings(self, query, use_description, postcode, cat1_id, cat2_id, items_per_call=100, offset=0, repeat_delay=0.1, verbose=False):
         all_listings = []
-        limit = items_per_call
         
         ### Asynchronous
-        if asynchronous:
-            all_json_data = []
+        all_json_data = []
 
-            # Query for the first listings
-            url = self.__compose_url(
-                query=query,
-                use_description=use_description,
-                postcode=postcode,
-                cat1_id=cat1_id,
-                cat2_id=cat2_id,
-                limit=items_per_call,
-                offset=offset
-            )
+        # Query for the first listings
+        url = self.__compose_url(
+            query=query,
+            use_description=use_description,
+            postcode=postcode,
+            cat1_id=cat1_id,
+            cat2_id=cat2_id,
+            limit=items_per_call,
+            offset=offset
+        )
 
-            # Get the first JSON object
-            #if verbose:
-            #    print("\nAPI call: '%s'\nGetting listings %d-%d..." % (url, offset, offset + items_per_call))
-            response, delta_t = self.get(url, timer=True)
-            if response is None:
-                if verbose:
-                    print("\033[91m✘\033[0m ERROR: Could not fetch JSON data (%.1fs)" % delta_t)
-                return None
-            json_data = response.json()
-            all_json_data.append(json_data)
-
-            # Determine the total number of listings for the query
-            num_listings = self.get_num_listings(json_data)
+        # Get the first JSON object
+        #if verbose:
+        #    print("\nAPI call: '%s'\nGetting listings %d-%d..." % (url, offset, offset + items_per_call))
+        response, delta_t = self.get(url, timer=True)
+        if response is None:
             if verbose:
-                print("\033[92m✔\033[0m (%.1fs)\n\n%s yields %d listings" % (delta_t, (str("'%s'" % query) if query != '' else '<no query>'), num_listings))
-            
-            # Create URLs with calculated 'limit' and 'offset'
-            urls = [self.__compose_url(
-                query=query,
-                use_description=use_description,
-                postcode=postcode,
-                cat1_id=cat1_id,
-                cat2_id=cat2_id,
-                limit=items_per_call,
-                offset=i
-                ) for i in range(offset + items_per_call, num_listings, items_per_call)
-            ]
+                print("\033[91m✗\033[0m ERROR: Could not fetch JSON data (%.1fs)" % delta_t)
+            return None
+        json_data = response.json()
+        all_json_data.append(json_data)
 
-            # Get the following async responses
-            if len(urls) > 0:
-                if verbose:
-                    print("\nGetting listings %d-%d..." % (items_per_call, num_listings))
-                responses, delta_t = self.get_multiple(urls, timer=True)
-                
-                # Check for invalid responses
-                if None in responses:
-                    if verbose:
-                        print("\033[91m✘\033[0m ERROR: Could not fetch all JSON data (%.1fs)" % delta_t)
-                    return None
-                
-                if verbose:
-                    print("\033[92m✔\033[0m (%.1fs)" % delta_t)
-                all_json_data.extend([r.json() for r in responses])
-            
-            # Get listings from JSON data
-            for json_data in all_json_data:
-                all_listings.extend(json_data['listings'])
+        # Determine the total number of listings for the query
+        num_listings = self.get_num_listings(json_data)
+        if verbose:
+            print("\033[92m✓\033[0m (%.1fs)\n\n%s yields %d listings" % (delta_t, (str("'%s'" % query) if query != '' else '<no query>'), num_listings))
         
-        ### Synchronous (deprecated)
-        else:
-            end_reached = False
-            try:
-                while not end_reached:
-                    # Obtain the data
+        # Create URLs with calculated 'limit' and 'offset'
+        urls = [self.__compose_url(
+            query=query,
+            use_description=use_description,
+            postcode=postcode,
+            cat1_id=cat1_id,
+            cat2_id=cat2_id,
+            limit=items_per_call,
+            offset=i
+            ) for i in range(offset + items_per_call, num_listings, items_per_call)
+        ]
+
+        # Get the following async responses
+        if len(urls) > 0:
+            if verbose:
+                print("\nGetting listings %d-%d..." % (items_per_call, num_listings))
+            responses, delta_t = self.get_multiple(urls, timer=True)
+            
+            # Check for invalid responses
+            if None in responses:
+                # Some of the responses are invalid; remove those
+                responses = [r for r in responses if r is not None]
+                if len(responses) > 0:
                     if verbose:
-                        print("Collecting %d-%d..."%(offset, offset + limit))
-                    url = self.__compose_url(
-                        query=query,
-                        use_description=use_description,
-                        postcode=postcode,
-                        cat1_id=cat1_id,
-                        cat2_id=cat2_id,
-                        limit=limit,
-                        offset=offset)
-
-                    json_data = self.get(url).json()
-                    listings = json_data['listings']
-
-                    # Store the data
-                    all_listings.extend(listings)
-
-                    # Check stopping criterion
-                    if len(listings) != limit:
-                        end_reached = True
-                    else:
-                        offset += items_per_call
-                        # Wait a while before the next API call
-                        time.sleep(repeat_delay)
-            except TimeoutError:
-                if verbose:
-                    print("\033[93mWarning: TimeoutError has occurred.\nYou'll get all that was collected up until now.\033[0m")
-                return all_listings
+                        print("\033[93m✗\033[0m Warning: not all listings are valid; keeping a subset (%.1fs)" % delta_t)
+                else:
+                    return None
+            
+            if verbose:
+                print("\033[92m✓\033[0m (%.1fs)" % delta_t)
+            all_json_data.extend([r.json() for r in responses])
+        
+        # Get listings from JSON data
+        for json_data in all_json_data:
+            all_listings.extend(json_data['listings'])
 
         return all_listings
 

@@ -9,8 +9,8 @@ You may change these parameters to your liking!
 PROXY = None                                                    # Allows a custom proxy; keep as 'None' to automatically find a proxy instead.
 FORCE_CUSTOM_PROXY = False                                      # If True, automatic proxy finding is disabled; the program will simply quit if the custom proxy does not work.
 PROXY_CHECK_URL = 'https://www.marktplaats.nl'                  # URL for checking proxy validity; use the root of the website you're going to crawl.
-PROXY_MAX_RETRIES = 30                                          # Maximum number of attempts for automatically finding a proxy; irrelevant if you force-use a custom proxy (`float('inf')` is allowed but not recommended).
-HTTP_GET_MAX_RETRIES = 30                                       # Maximum number of attempts to ensure a valid GET response (`float('inf')` is allowed but not recommended).
+PROXY_MAX_RETRIES = 20                                          # Maximum number of attempts for automatically finding a proxy; irrelevant if you force-use a custom proxy (`float('inf')` is allowed but not recommended).
+HTTP_GET_MAX_RETRIES = 50                                       # Maximum number of attempts to ensure a valid GET response (`float('inf')` is allowed but not recommended).
 
 
 ### Database parameters

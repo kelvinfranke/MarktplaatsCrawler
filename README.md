@@ -22,5 +22,5 @@ Libraries:
 
 
 ### Known issues
-* The Marktplaats API will never yield more than 5,000 ads/listings from a query, even if it claims there are more to be found.
+* The Marktplaats API will not yield more than 5,000 ads/listings from a query, even if it claims there are more to be found.
 * Bids are currently *not* stored, because the ads/listings do not directly contain this data.
