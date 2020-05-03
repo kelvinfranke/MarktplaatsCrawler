@@ -128,5 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Database created by the program
+# Databases created by the program
 *.db
+*.pickle
