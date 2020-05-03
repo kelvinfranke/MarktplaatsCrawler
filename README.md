@@ -22,7 +22,7 @@ Libraries:
 
 
 ### Important and necessary remarks
-Please note that I am not responsible for you using and/or running this code on a machine. Anything that results from this, be it a lawsuit due to improper use of APIs, your computer burning down, or your husband/wife leaving you, is the responsibility of the user and the user only. I hereby merely provide code that, in theory, functions.
+Please note that I am not responsible nor liable for you using and/or running this code on any machine. Anything that results from this, be it a lawsuit due to improper use of APIs, your computer burning down, or your husband/wife leaving you, is the responsibility of the user and the user only. I hereby merely provide code that, in theory, functions.
 
 Please also make sure -- if you *do* decide to run the code -- that it is permitted by your local law to crawl for such data. Again, determining whether or not this is the case is purely the responsibility of the user.
 
