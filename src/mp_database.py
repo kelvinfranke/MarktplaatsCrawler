@@ -11,8 +11,7 @@ import pandas as pd
 
 class Database(object):
 
-    def __init__(self, save_path='marktplaats.db'):
-        # TODO: load existing dataframe
+    def __init__(self, save_path):
         self.__save_path = save_path
         if os.path.exists(save_path):
             self.__load_dataframe_from_db()
@@ -101,12 +100,6 @@ class Database(object):
             data['datetime_created'].append(listing['date']) # Format: time.strftime('%Y-%m-%dT%H:%M:%SZ')
             data['datetime_fetched'].append(fetch_time)
             data['href'].append('http://www.marktplaats.nl/' + listing['vipUrl'])
-
-            # Damnit Marktplaats, why did you have to create a list of dicts like:
-            #   [{'key': 'condition', 'value': 'Zo goed als nieuw'}, {'key': 'delivery', ...}]
-            # if you could've just done:
-            #   {'condition': 'Zo goed als nieuw', 'delivery': ...}
-            # :-(
 
             # Refactor 'attributes' because of Marktplaats' poor programming
             if 'attributes' in listing.keys():

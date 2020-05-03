@@ -14,7 +14,7 @@ HTTP_GET_MAX_RETRIES = 50                                       # Maximum number
 
 
 ### Database parameters
-DATABASE_NAME = 'marktplaats.db'                                # Name of the database file that will be created.
+DATABASE_NAME = 'marktplaats.pickle'                                # Name of the database file that will be created.
 # NOTE: if you wish to use different data or a different database, feel free to write your own `Database` object which implements the same methods.
 
 
@@ -40,33 +40,5 @@ QUERIES = [                                                     # List of querie
         "cat1_id": 31,
         "cat2_id": None,
         "postcode": "9711AA"
-    },
-    {
-        "query": "minolta",
-        "use_description": True,
-        "cat1_id": 31,
-        "cat2_id": None,
-        "postcode": "9711AA"
-    },
-    {
-        "query": "nikon",
-        "use_description": False,
-        "cat1_id": 31,
-        "cat2_id": 495,
-        "postcode": "9711AA"
-    },
-    {
-        "query": "canon",
-        "use_description": False,
-        "cat1_id": 31,
-        "cat2_id": 495,
-        "postcode": "9711AA"
-    }#,
-    # {
-    #     "query": "",
-    #     "use_description": False,
-    #     "cat1_id": 31,
-    #     "cat2_id": None,
-    #     "postcode": "9711AA"
-    # }
+    }
 ]
