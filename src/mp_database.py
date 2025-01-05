@@ -1,124 +1,143 @@
 import os
+import sqlite3
+from datetime import datetime
 import pandas as pd
 
+class Database:
+    def __init__(self, db_path):
+        self.db_path = db_path
+        self.conn = sqlite3.connect(db_path)
+        self.__create_tables()
 
-"""
-    For now, the database is a pickled Pandas dataframe where each row contains
-    a product and its (meta)data.
+    def __create_tables(self):
+        """Create the necessary tables if they don't exist"""
+        cursor = self.conn.cursor()
+        
+        # Create the main listings table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id TEXT NOT NULL,
+            product_name TEXT,
+            product_description TEXT,
+            category TEXT,
+            price_type TEXT,
+            price REAL,
+            price_readable TEXT,
+            seller_id TEXT,
+            seller_name TEXT,
+            location_name TEXT,
+            location_distance_m INTEGER,
+            priority_product BOOLEAN,
+            urgency_feature_active BOOLEAN,
+            nap_available BOOLEAN,
+            datetime_created TEXT,
+            datetime_fetched TEXT,
+            href TEXT,
+            UNIQUE(product_id, datetime_fetched)
+        )''')
 
-"""
+        # Create a separate table for dynamic attributes
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS listing_attributes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            listing_id INTEGER,
+            attribute_key TEXT,
+            attribute_value TEXT,
+            FOREIGN KEY(listing_id) REFERENCES listings(id),
+            UNIQUE(listing_id, attribute_key)
+        )''')
 
+        self.conn.commit()
 
-class Database(object):
-
-    def __init__(self, save_path):
-        self.__save_path = save_path
-        if os.path.exists(save_path):
-            self.__load_dataframe_from_db()
-        else:
-            self.__df = None
-    
-
-    # Save the DataFrame, pickled.
-    def __save_dataframe_to_db(self):
-        self.__df.to_pickle(self.__save_path)
-
-
-    # Load a pickled DataFrame.
-    def __load_dataframe_from_db(self):
-        self.__df = pd.read_pickle(self.__save_path)
-
-
-    # Returns the Pandas DataFrame.
-    def get_dataframe(self):
-        return self.__df
-
-
-    # Takes a list of Marktplaats listings, and stores this in the database.
     def add_listings(self, listings, fetch_time):
-        # Can't do anything if the input is erroneous.
         if listings is None:
             return
 
-        data = self.__listings_to_dict(listings, fetch_time)
-        new_df = pd.DataFrame(data)
+        cursor = self.conn.cursor()
 
-        if self.__df is None:
-            # No DataFrame? Use the newly obtained one.
-            self.__df = new_df
+        for listing in listings:
+            # Prepare main listing data
+            listing_data = {
+                'product_id': listing['itemId'],
+                'product_name': listing['title'],
+                'product_description': listing['description'],
+                'category': listing['categoryId'],
+                'price_type': listing['priceInfo']['priceType'],
+                'price': float(listing['priceInfo']['priceCents'])/100,
+                'price_readable': '€%.2f' % (float(listing['priceInfo']['priceCents'])/100),
+                'seller_id': listing['sellerInformation']['sellerId'],
+                'seller_name': listing['sellerInformation']['sellerName'],
+                'location_name': listing['location'].get('cityName'),
+                'location_distance_m': listing['location']['distanceMeters'],
+                'priority_product': listing['priorityProduct'],
+                'urgency_feature_active': listing['urgencyFeatureActive'],
+                'nap_available': listing['napAvailable'],
+                'datetime_created': listing['date'],
+                'datetime_fetched': fetch_time,
+                'href': 'http://www.marktplaats.nl/' + listing['vipUrl']
+            }
+
+            # Insert main listing data
+            try:
+                cursor.execute('''
+                INSERT INTO listings (
+                    product_id, product_name, product_description, category,
+                    price_type, price, price_readable, seller_id, seller_name,
+                    location_name, location_distance_m, priority_product,
+                    urgency_feature_active, nap_available, datetime_created,
+                    datetime_fetched, href
+                ) VALUES (
+                    :product_id, :product_name, :product_description, :category,
+                    :price_type, :price, :price_readable, :seller_id, :seller_name,
+                    :location_name, :location_distance_m, :priority_product,
+                    :urgency_feature_active, :nap_available, :datetime_created,
+                    :datetime_fetched, :href
+                )''', listing_data)
+                
+                # Get the ID of the inserted listing
+                listing_id = cursor.lastrowid
+
+                # Handle attributes if they exist
+                if 'attributes' in listing:
+                    for attr in listing['attributes']:
+                        cursor.execute('''
+                        INSERT OR REPLACE INTO listing_attributes (listing_id, attribute_key, attribute_value)
+                        VALUES (?, ?, ?)
+                        ''', (listing_id, attr['key'], attr['value']))
+
+            except sqlite3.IntegrityError:
+                # Skip if this product_id and datetime_fetched combination already exists
+                continue
+
+        self.conn.commit()
+
+    def get_dataframe(self, query=None):
+        """
+        Get data as a pandas DataFrame
+        If query is None, returns all listings
+        Otherwise executes the provided SQL query
+        """
+        if query is None:
+            query = '''
+            SELECT l.*, GROUP_CONCAT(a.attribute_key || ': ' || a.attribute_value) as attributes
+            FROM listings l
+            LEFT JOIN listing_attributes a ON l.id = a.listing_id
+            GROUP BY l.id
+            '''
+        
+        return pd.read_sql_query(query, self.conn)
+
+    def execute_query(self, query, parameters=None):
+        """Execute a custom SQL query"""
+        cursor = self.conn.cursor()
+        if parameters:
+            cursor.execute(query, parameters)
         else:
-            # DataFrame exists? Concatenate but remove duplicates where product ID and fetch time is the same.
-            # This keeps multiples of one product ID only if the fetch time differs;
-            # This is valuable information since it means the product ad is still online after some time.
-            self.__df = pd.concat([self.__df, new_df], sort=False)
-            self.__df = self.__df.drop_duplicates(subset=['product_id', 'datetime_fetched'])
+            cursor.execute(query)
+        return cursor.fetchall()
 
-        # Update the pickled DataFrame file
-        self.__save_dataframe_to_db()
-    
-
-    # Takes a list of Marktplaats listings, and returns a dictionary representation thereof.
-    def __listings_to_dict(self, listings, fetch_time):
-        # Define initial dictionary keys (more are later dynamically created as needed)
-        keys = [
-            'product_id',
-            'product_name',
-            'product_description',
-            'category',
-            'price_type',
-            'price',
-            'price_readable',
-            'seller_id',
-            'seller_name',
-            'location_name',
-            'location_distance_m',
-            'priority_product',
-            'urgency_feature_active',
-            'nap_available',
-            'datetime_created',
-            'datetime_fetched',
-            'href'
-            ]
-        data = {key: [] for key in keys}
-
-        # Fill dictionary keys
-        for i, listing in enumerate(listings):
-            data['product_id'].append(listing['itemId'])
-            data['product_name'].append(listing['title'])
-            data['product_description'].append(listing['description'])
-            data['category'].append(listing['categoryId'])
-            data['price_type'].append(listing['priceInfo']['priceType'])
-            data['price'].append(float(listing['priceInfo']['priceCents'])/100)
-            data['price_readable'].append('€%.2f' % (float(listing['priceInfo']['priceCents'])/100))
-            data['seller_id'].append(listing['sellerInformation']['sellerId'])
-            data['seller_name'].append(listing['sellerInformation']['sellerName'])
-            data['location_name'].append(listing['location']['cityName'] if 'cityName' in listing['location'] else None)
-            data['location_distance_m'].append(listing['location']['distanceMeters'])
-            data['priority_product'].append(listing['priorityProduct'])
-            data['urgency_feature_active'].append(listing['urgencyFeatureActive'])
-            data['nap_available'].append(listing['napAvailable'])
-            data['datetime_created'].append(listing['date']) # Format: time.strftime('%Y-%m-%dT%H:%M:%SZ')
-            data['datetime_fetched'].append(fetch_time)
-            data['href'].append('http://www.marktplaats.nl/' + listing['vipUrl'])
-
-            # Refactor 'attributes' because of Marktplaats' poor programming
-            if 'attributes' in listing.keys():
-                attributes = {attribute['key']: attribute['value'] for attribute in listing['attributes']}
-                for key in attributes.keys():
-                    # Modify key name
-                    key_name = 'attribute_' + key
-                    # Ensure the key exists
-                    if key_name not in data.keys():
-                        # Key did not exist; fill with `None` for previous listings
-                        data[key_name] = [None] * (i - 1)
-                        # add key and fill with [None] * i
-                    data[key_name].append(attributes[key])
-            
-            # Ensure all keys have some value
-            # NOTE: not the most efficient, to loop over keys again to check whether we missed something. ¯\_(ツ)_/¯
-            for key in data.keys():
-                if len(data[key]) == i: # length of a filled key list should be `i + 1`, since `i` starts at 0
-                    # Fill in a None because we don't have a value for this key yet
-                    data[key].append(None)
-
-        return data
+    def __del__(self):
+        """Ensure database connection is closed when object is deleted"""
+        if hasattr(self, 'conn'):
+            self.conn.close()

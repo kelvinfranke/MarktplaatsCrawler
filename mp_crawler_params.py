@@ -28,17 +28,11 @@ DATABASE_NAME = 'marktplaats.pickle'                                # Name of th
 
 QUERIES = [                                                     # List of queries, each a dictionary of search parameters for that query.
     {
-        "query": "sony",
+        "query": "honda vfr 800",
         "use_description": False,
-        "cat1_id": 31,
-        "cat2_id": 495,
-        "postcode": "9711AA"
-    },
-    {
-        "query": "m42",
-        "use_description": True,
-        "cat1_id": 31,
-        "cat2_id": None,
-        "postcode": "9711AA"
+        "cat1_id": None,
+        # "cat2_id": 696,
+        "cat2_id": 696,
+        "postcode": ""
     }
 ]
